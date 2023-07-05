@@ -13,9 +13,7 @@ def text_to_numpy(all_solutions):
 
 def hash_solution(solutions, min_bound, max_bound, pf):
 
-    print(min_bound, "-", max_bound)
     p = np.arange(min_bound, max_bound, pf).tolist()
-    print(p)
     for i in range(len(solutions)):
         for j in range(len(solutions[i])):
             for k in range(len(p) - 1):
@@ -50,7 +48,6 @@ def continuous_standard(params, cfiles):
             sol2 = S[i+1]
 
             result.append("{},{},{},{},{}".format(it, fitnnes1, sol1, fitnnes2, sol2))
-        #   print(results)
         results[algo].append(result)
     
     return results

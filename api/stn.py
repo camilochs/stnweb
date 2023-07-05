@@ -18,6 +18,7 @@ import shutil
 import re 
 import functools
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
@@ -67,13 +68,13 @@ class Params(object):
         self.standard_configuration = standard_configuration
 
 def get_params() -> Params:
-    bmin = request.form.get('bmin', "") 
+    bmin = request.form.get('bmin', "1") 
     best = request.form.get('best', "")
     nruns = request.form.get('nruns', "")
     hash_file = request.form.get('hash_file', "")
-    partition_value = request.form.get('zvalue', "")
-    nodesize = request.form.get('nodesize', "")
-    arrowsize = request.form.get('arrowsize', "")
+    partition_value = request.form.get('zvalue', "0.0")
+    nodesize = request.form.get('nodesize', "1")
+    arrowsize = request.form.get('arrowsize', "0.15")
     typeproblem = request.form.get('typeproblem', "")
     strategy_partition = request.form.get('strategy_partition', "standard")
     partition_factor = request.form.get('standard_configuration_partition_factor', 0)
@@ -154,7 +155,6 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     start = time.time()
 
-    print("--------------------- DISCRETE PROBLEM")
     file = discrete_standard(contentLineFile, partition_value, cfiles)
 
     end = time.time()
@@ -167,11 +167,8 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
 
 def writing_file_continuous(content_files, params, cfiles):
     
-    print("--------------------- CONTINUOUS PROBLEM")
     if params.strategy_partition == "standard":
-        print("--------------------- STANDARD")
         results = continuous_standard(params, cfiles)
-        #file = continuous_standard(file, partition_value, cfiles)
         for algo, results in results.items():
             for i, file in enumerate(results):
                 if file[0] != "Run,Fitness1,Solution1,Fitness2,Solution2":
@@ -185,10 +182,7 @@ def writing_file_continuous(content_files, params, cfiles):
                         f.write("{}\n".format(line))
                         
     elif params.strategy_partition == "agglomerative":
-        print("--------------------- AGGLOMERATIVE")
         results, min_clusters = continuous_agglomerative(params, cfiles)
-        #file = 0
-    
 
         for algo, results_clustering in results.items():
 
@@ -197,7 +191,6 @@ def writing_file_continuous(content_files, params, cfiles):
                     _file =  ["Run,Fitness1,Solution1,Fitness2,Solution2"] + file[:]
                 else:
                     _file = file
-                #os.makedirs(os.path.dirname(content_files[i].filename), exist_ok=True)
                 filename = "temp/{}-{}/{}.csv".format(params.hash_file, results_clustering.number_of_clusters[i], algo)
                 os.makedirs(os.path.dirname(filename), exist_ok=True)
                 with open(filename, "w") as f:
@@ -208,7 +201,6 @@ def writing_file_continuous(content_files, params, cfiles):
 
 def process_partition(params):
 
-    #hash_file = ''.join(random.choice('0123456789ABCDEF') for i in range(16))
     content_files = []
     for _ in range(len(params.files)):
         content_files.append(Instances())
@@ -244,8 +236,6 @@ def generate_from_files(params : Params):
     with Popen("Rscript create.R {} {} {} {}".format(params.hash_file, params.bmin, params.best, params.nruns), stdout=PIPE, stderr=None, shell=True) as process:
         output = process.communicate()[0]
         print("OK: {}".format(output))
-        #if not exists("{}-stn/{}_stn.RData".format(hash_file, algorithm_name)):
-        #    return { "status": False, "file_error": "create.R", "message": str(output) }
 
     print("--> Rscript merge.R {}".format("{}-stn".format(params.hash_file)))
     with Popen("Rscript merge.R {}".format("{}-stn".format(params.hash_file)), stdout=PIPE, stderr=None, shell=True) as process:
@@ -296,8 +286,6 @@ def generate_from_file(params : Params):
     with Popen("Rscript metrics-alg.R {}".format("{}-stn".format(params.hash_file)), stdout=PIPE, stderr=None, shell=True) as process:
         output = process.communicate()[0]
         print("OK: {}".format(output))  
-        #shutil.rmtree("temp/" + params.hash_file)
-        #shutil.rmtree("temp/{}-stn".format(params.hash_file))
     return send_file(path, mimetype='application/pdf', as_attachment=True)
 
 
@@ -319,8 +307,6 @@ def get_agglomerative_info():
             limit_init = number_one_cluster,
             limit_end = number_one_cluster
         )
-
-
 
 @app.route("/stn-metrics", methods=['POST'])
 def get_metrics():

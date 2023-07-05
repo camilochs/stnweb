@@ -34,7 +34,6 @@ class Clustering:
         self.total_volume = np.linalg.norm(self.S) * S.shape[0] * S.shape[1]
 
         start = time.time()
-        print(self.total_volume )
         while self.merge_cluster(limit_cluster_size_percent, limit_cluster_volume_percent): 
             pass
             #clear_output(wait=True)
@@ -65,7 +64,6 @@ class Clustering:
         
         if distance_method == 'hamming':
             self.hamming_cache.clear()
-        print("Counter: ", Counter(test))
         print("distance: ", distance_method)
         print("sum_dist: ", sum_dist)
      
@@ -180,7 +178,6 @@ class Clustering:
                 temp.add(frozenset(u))
                 
             if len(self.cluster) <= len(temp):
-                print("Ok")
                 return False
 
             self.cluster = temp.copy()
@@ -245,7 +242,6 @@ def continuous_agglomerative(params, cfiles):
 
     C = Clustering(S, M, params.typeproblem, params.agglomerative_clustering.cluster_size, params.agglomerative_clustering.volumen_size, params.agglomerative_clustering.distance_method)
     clusters = sorted([len(c) for c in C.cluster_iteration])
-    print(clusters)
     #clusters = 
     if params.typeproblem == "discrete":
         min_clusters = max(min(clusters), 10)
@@ -303,6 +299,5 @@ def continuous_agglomerative(params, cfiles):
                 result.append("{},{},{},{},{}".format(it, fitnnes1, sol1, fitnnes2, sol2))
             results[algo].clustering.append(result)
             results[algo].number_of_clusters.append(len(clusters))
-    #print(results)
     print("Min clusters:", min_clusters)
     return results, min_clusters
