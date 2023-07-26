@@ -1,4 +1,4 @@
-# STNWeb on local environment
+# STNWeb v1.1 on local environment
 
 Steps to run STNWeb in local environment using docker.
 
@@ -20,4 +20,4 @@ Steps to run STNWeb in local environment using docker.
 
 -----
 
-For more details, see the [PDF](/tutorial/tutorial_stnweb_v1_1.pdf) in the folder /tutorial.
+For more details, see the [PDF](/tutorial/tutorial_stnweb_v1_1.pdf) in the folder [/tutorial](/tutorial/).
