@@ -97,13 +97,11 @@ class Clustering:
                     self.M[i, j] =  round(distance.hamming(self.hamming_cache[_i], self.hamming_cache[_j]) * len(self.S[i]))
                  
                 heapq.heappush(self.priorityqueue, (self.M[i, j],  (i, j)))
-               
                 sum_dist += self.M[i,j]
             print(f"complete (processing distances): { i * 100 / len(self.S):.2f} %", end='\r')
 
         if distance_method == 'hamming':
             self.hamming_cache.clear()
-        
         self.priorityqueue = sorted(self.priorityqueue)
         
         print("distance: ", distance_method)
