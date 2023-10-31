@@ -4,12 +4,14 @@ import math
 import operator
 from hashlib import sha256
 from pprint import pprint
+from copy import deepcopy
 
 class Stats:
-        pos = 0
-        one_freq = 0.0
-        entropy = 0.0
-
+        def __init__(self):
+                self.pos = 0
+                self.freq_alphabet: Dict[str, float] = {}
+                self.entropy_alphabet: Dict[str, float] = {}
+        
 def get_total_area(totalNodes, stats):
         total_area = 0.0
 
@@ -17,13 +19,15 @@ def get_total_area(totalNodes, stats):
                 total_area += stats[i].entropy + ((stats[i-1].entropy - stats[i].entropy)/2.0)
         return total_area
 
-def standard(datainput, c, all_solutions):
+def standard(datainput, c_client, all_solutions):
         print("Start partitions")
-        
+        print("discrete")        
         partitions_one_algorithm = set()
         partitions = set()
         partitions_idx_noset : Dict[int, tuple] = {}
         allFitness : Dict[str, int] = {}
+
+        alphabet = set()
         for line in datainput:
             if not line:
                     continue
@@ -36,12 +40,15 @@ def standard(datainput, c, all_solutions):
             if idx not in partitions_idx_noset:
                     partitions_idx_noset[idx] = []
 
-            partitions_idx_noset[idx].append((int(fitness1), bin1))
-            partitions_idx_noset[idx].append((int(fitness2), bin2))
+            partitions_idx_noset[idx].append((float(fitness1), bin1))
+            partitions_idx_noset[idx].append((float(fitness2), bin2))
             
             
             partitions_one_algorithm.add(bin1)
             partitions_one_algorithm.add(bin2)
+
+            for c in (bin1 + bin2):
+                alphabet.add(c)
 
         for line in all_solutions:
             if not line:
@@ -49,8 +56,8 @@ def standard(datainput, c, all_solutions):
             _, fitness1, bin1, fitness2, bin2 = line.split(',')
             partitions.add(bin1)
             partitions.add(bin2)
-            allFitness[bin1] = int(fitness1)
-            allFitness[bin2] = int(fitness2)
+            allFitness[bin1] = float(fitness1)
+            allFitness[bin2] = float(fitness2)
 
         solutions = list(partitions_one_algorithm)
 
@@ -58,31 +65,41 @@ def standard(datainput, c, all_solutions):
         totalNodes = len(solutions[0])
         stats = []
 
+        if set(alphabet) == set(["0", "1"]):
+                alphabet.remove("0")
+
         for i in range(totalNodes):
-                stats.append(Stats())
+                stats.append(deepcopy(Stats()))
                 stats[i].pos = i
 
         for i in range(totalNodes):
-                stats[i].one_freq = float([b[i] for b in all_solutions].count('1'))
-
+                for c in alphabet:
+                                
+                        stats[i].freq_alphabet[c] = float([b[i] for b in all_solutions].count(c))
+                        stats[i].entropy_alphabet[c] = 0.0
 
         for i in range(totalNodes):
-                stats[i].one_freq /= float(len(all_solutions))
-                if stats[i].one_freq > 0.0:
-                        stats[i].entropy += (stats[i].one_freq * math.log2(stats[i].one_freq))
-                if ((1.0 - stats[i].one_freq) > 0.0):
-                        stats[i].entropy += ((1.0 - stats[i].one_freq) * math.log2(1.0 - stats[i].one_freq))
-                
-                stats[i].entropy *= -1.0
-        stats = sorted(stats, key=operator.attrgetter('entropy'), reverse=True)
+                for c in alphabet:
+                        stats[i].freq_alphabet[c] /= float(len(all_solutions))
+                        if stats[i].freq_alphabet[c] > 0.0:
+                                stats[i].entropy_alphabet[c] += (stats[i].freq_alphabet[c] * math.log2(stats[i].freq_alphabet[c]))
+                        if ((1.0 - stats[i].freq_alphabet[c]) > 0.0):
+                                stats[i].entropy_alphabet[c] += ((1.0 - stats[i].freq_alphabet[c]) * math.log2(1.0 - stats[i].freq_alphabet[c]))
+                        
+                        stats[i].entropy_alphabet[c] *= -1.0
+
+        stats = sorted(stats, key=lambda i: max(i.entropy_alphabet.values()), reverse=True)
+        print("0: ", stats[0].entropy_alphabet, " - ", stats[0].pos)
+        print("1: ", stats[1].entropy_alphabet, " - ", stats[1].pos)
+
         results = ["Run,Fitness1,Solution1,Fitness2,Solution2"]
-        totalArea = get_total_area(totalNodes, stats)
-        
-        totalVars = int(math.floor((totalNodes*c)/100.0))
+        #totalArea = get_total_area(totalNodes, stats)
+        print(totalNodes, " - ", c_client)
+        totalVars = totalNodes - int(math.floor((totalNodes*c_client)/100.0))
         if totalVars == 0:
                 totalVars = 1
         print("total vars:", totalVars)
-        print("C: ------------> {} ".format(c))
+        print("C: ------------> {} ".format(c_client))
 
         repr : Dict[str, str]= {}
         fitness : Dict[str, int] = {}
@@ -91,8 +108,8 @@ def standard(datainput, c, all_solutions):
                 
                 cSols = [] 
                 
-                for _ in range(totalVars):
-                        cSols.append("0")
+                for j in range(totalVars):
+                        cSols.append('0')
                 for j in range(totalVars):
                         cSols[j] = sol[stats[j].pos]
         
@@ -108,15 +125,17 @@ def standard(datainput, c, all_solutions):
         for k, data in partitions_idx_noset.items():
                 bin = [e[1] for e in data]
                 for i in range(0, len(bin)-1, 2):
-                        if c > 0 and (repr[bin[i]] != repr[bin[i+1]]):
+                        if c_client > 0 and (repr[bin[i]] != repr[bin[i+1]]):
+                          print(repr[bin[i]].encode('utf-8'))
                           sol1 = sha256(repr[bin[i]].encode('utf-8')).hexdigest()
                           sol2 = sha256(repr[bin[i+1]].encode('utf-8')).hexdigest()
                           results.append("{},{},{},{},{}".format(k, fitness[repr[bin[i]]], sol1, fitness[repr[bin[i+1]]], sol2))  
-                        elif c == 0:
+                        elif c_client == 0:
                           sol1 = sha256(bin[i].encode('utf-8')).hexdigest()
                           sol2 = sha256(bin[i+1].encode('utf-8')).hexdigest()
                           results.append("{},{},{},{},{}".format(k, allFitness[bin[i]], sol1, allFitness[bin[i+1]], sol2))     
         
+    
         return results
 
 

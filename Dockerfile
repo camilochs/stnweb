@@ -11,7 +11,7 @@ RUN apt-get update -y && \
         r-base-dev \
         python3.11 python3-pip \
         r-base=4.1.2-1ubuntu2  \
-        nodejs=12.22.9~dfsg-1ubuntu3 \
+        nodejs=12.22.9~dfsg-1ubuntu3.1 \
         npm=8.5.1~ds-1 && \
     apt-get clean all && \
     rm -rf /var/lib/apt/lists/*
@@ -21,13 +21,13 @@ RUN R -e "install.packages(c('igraph', 'dply', 'tidyr', 'gtools'), dependencies=
 
 # Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir numpy==1.23.5 scipy==1.9.1 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 
+    pip install --no-cache-dir numpy==1.23.5 scipy==1.9.1 Werkzeug==2.2.2 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 gunicorn==21.2.0 
 
 RUN npm install http-server -g
 
 COPY . /develop
 
-EXPOSE 5000
+EXPOSE 5001
 EXPOSE 8081
 
 COPY docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh

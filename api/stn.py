@@ -1,5 +1,5 @@
 from curses import pair_content
-from flask import jsonify
+from flask import Blueprint, jsonify
 from zlib import Z_BEST_COMPRESSION
 from flask import Flask, send_file, request
 from flask_cors import CORS
@@ -18,8 +18,8 @@ import shutil
 import re 
 import functools
 import logging
+import sys
 
-logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 CORS(app)
@@ -34,8 +34,8 @@ class StandardParams(object):
     def __init__(self, pf, pp, min_b, max_b) -> None:
         self.partition_factor = 10.0**int(pf)
         self.partition_percen = float(pp)
-        self.min_bound = int(min_b)
-        self.max_bound = int(max_b)
+        self.min_bound = float(min_b)
+        self.max_bound = float(max_b)
 
 class AgglomerativeClusteringParams(object):
     def __init__(self, cluster_size, volumen_size, number_of_clusters, distance_method) -> None:
@@ -78,8 +78,8 @@ def get_params() -> Params:
     typeproblem = request.form.get('typeproblem', "")
     strategy_partition = request.form.get('strategy_partition', "standard")
     partition_factor = request.form.get('standard_configuration_partition_factor', 0)
-    min_bound = request.form.get('standard_configuration_min_bound', 0)
-    max_bound = request.form.get('standard_configuration_max_bound', 0)
+    min_bound = request.form.get('standard_configuration_min_bound', 0.0)
+    max_bound = request.form.get('standard_configuration_max_bound', 0.0)
     cluster_size = request.form.get('agglomerative_configuration_cluster_size', 50)
     volumen_size = request.form.get('agglomerative_configuration_volumen_size', 50)
     number_of_clusters = request.form.get('agglomerative_configuration_number_of_cluster', -1)
@@ -131,8 +131,7 @@ def get_params() -> Params:
     
     
 def change_old_format(a):
-    a = [re.sub("\s+", ",", a[i].strip()) for i in range(0, len(a))]
-
+    a = [re.sub("(\s+)?[ ,\t](\s+)?", ",", a[i].strip()) for i in range(0, len(a))]
     new_content = [','.join(a[i].split(',')[:3]) + ',' + ','.join(a[i+1].split(',')[1:3]) for i in range(0, len(a)-1) 
     if len(a[i-1].split(',')) <= 3 and a[i].split(',')[0] == a[i+1].split(',')[0]]
 
@@ -151,8 +150,8 @@ def is_discrete(f):
 
 
 def writing_file_discrete(filename, contentLineFile, partition_value, strategy_partition, cfiles):
-    
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     start = time.time()
 
     file = discrete_standard(contentLineFile, partition_value, cfiles)
@@ -166,7 +165,6 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
             f.write("{}\n".format(line))
 
 def writing_file_continuous(content_files, params, cfiles):
-    
     if params.strategy_partition == "standard":
         results = continuous_standard(params, cfiles)
         for algo, results in results.items():
@@ -220,7 +218,8 @@ def process_partition(params):
         content_files[index].index = index
 
     all_solutions = functools.reduce(lambda i, j: i + j, [e.contentLineFile for e in content_files])
-    
+    print(params.typeproblem, "----", params.strategy_partition)
+
     if params.typeproblem == "discrete" and params.strategy_partition == 'standard':
         for file in content_files:
             writing_file_discrete(file.filename, file.contentLineFile, params.partition_value, params.strategy_partition, all_solutions)
@@ -327,5 +326,25 @@ def generate():
     else:
         return generate_from_file(params)
 
+errors = Blueprint('errors', __name__)
+
+@app.route("/test", methods=['GET'])
+def test():
+    print("TEST")
+
+@errors.app_errorhandler(Exception)
+def handle_unexpected_error(error):
+    status_code = 500
+    success = False
+    response = {
+        'success': success,
+        'error': {
+            'type': 'UnexpectedException',
+            'message': 'An unexpected error has occurred.'
+        }
+    }
+
+    return jsonify(response), status_code
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',port=5000, threaded=True, debug=True) 
+    app.run(host='0.0.0.0', port=5001, threaded=True, debug=True) 

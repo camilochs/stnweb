@@ -3,11 +3,14 @@ from scipy.spatial import distance
 from operator import itemgetter
 from hashlib import sha256
 import numpy as np
-import treap
 import time
 import math
 from collections import Counter
-
+import heapq
+import treap
+import copy
+from itertools import product
+from multiprocessing import Pool, Lock
 
 class Clustering:
     def __init__(self, S, M, typeproblem, limit_cluster_size_percent, limit_cluster_volume_percent, distance_method):
@@ -21,7 +24,8 @@ class Clustering:
         self.rows_del = set()
         self.row_del_queue = { i : False for i in range(len(self.S))}
         self.total_cluster = len(self.S)
-        self.priorityqueue = treap.treap()
+        self.priorityqueue = []
+        self.priorityqueue_treap = treap.treap()
 
         if distance_method == 'hamming':
             self.hamming_cache = {bytearray(e).decode("utf-8") : e for e in self.S}
@@ -36,14 +40,48 @@ class Clustering:
         start = time.time()
         while self.merge_cluster(limit_cluster_size_percent, limit_cluster_volume_percent): 
             pass
-            #clear_output(wait=True)
             
         end = time.time()
         print(f"[Agglomerative] Duración (segundo): {end - start}")
         print("complete!")
+
+    def process_distances(self, data):
+        i, j, distance_method, lock = data
+        
+        if distance_method == "euclidean":
+            self.M[i, j] = distance.euclidean(self.S[i], self.S[j])
+        elif distance_method == "manhattan":
+            self.M[i, j] = distance.cityblock(self.S[i], self.S[j])
+        elif distance_method == "hamming":
+        
+            _i = bytearray(self.S[i]).decode("utf-8") 
+            _j = bytearray(self.S[j]).decode("utf-8") 
+            self.M[i, j] =  round(distance.hamming(self.hamming_cache[_i], self.hamming_cache[_j]) * len(self.S[i]))
+        with lock: 
+            heapq.heappush(self.priorityqueue, (self.M[i, j],  (i, j)))
+            return self.M[i, j]
+
+    def recalculate_distance_parallel(self, distance_method):
+        sum_dist = 0.0
+        print("Size matrix: ", len(self.S))
+        euclidean_cache = {}
+        lock = Lock()
+        with Pool(10) as pool:
+            for result in pool.starmap(self.process_distances, product(range(len(self.S)), range(len(self.S)), [distance_method], [lock])):
+                sum_dist += result
+                
+        if distance_method == 'hamming':
+            self.hamming_cache.clear()
+        
+        self.priorityqueue = sorted(self.priorityqueue)
+        print(self.priorityqueue[:10])
+        print("distance: ", distance_method)
+        print("sum_dist: ", sum_dist)
+
     def recalculate_distance(self, distance_method):
         sum_dist = 0.0
-        test = []
+        print("size matrix: ", len(self.S))
+        euclidean_cache = {}
         for i in range(len(self.S)):
             for j in range(len(self.S)):  
                 if i <= j:
@@ -53,25 +91,29 @@ class Clustering:
                 elif distance_method == "manhattan":
                     self.M[i, j] = distance.cityblock(self.S[i], self.S[j])
                 elif distance_method == "hamming":
+                
                     _i = bytearray(self.S[i]).decode("utf-8") 
                     _j = bytearray(self.S[j]).decode("utf-8") 
                     self.M[i, j] =  round(distance.hamming(self.hamming_cache[_i], self.hamming_cache[_j]) * len(self.S[i]))
-                    #self.M[i, j] = distance.hamming(self.S[i], self.S[j])
-                
-                test.append(self.M[i, j])
-                self.priorityqueue[(self.M[i, j], i, j)] = (i, j)
+                 
+                heapq.heappush(self.priorityqueue, (self.M[i, j],  (i, j)))
+               
                 sum_dist += self.M[i,j]
-        
+            print(f"complete (processing distances): { i * 100 / len(self.S):.2f} %", end='\r')
+
         if distance_method == 'hamming':
             self.hamming_cache.clear()
+        
+        self.priorityqueue = sorted(self.priorityqueue)
+        
         print("distance: ", distance_method)
         print("sum_dist: ", sum_dist)
      
     def volumen(self, solution, new_solution):
         if self.cluster_iteration:
+
             cluster_a = set()
             cluster_b = set()
-            #cluster_a = [c for c in self.cluster_iteration[-1] if solution in c]
             for c in self.cluster_iteration[-1]:
                 if (not cluster_a) and solution in c:
                     cluster_a = c
@@ -81,7 +123,7 @@ class Clustering:
                 
                 if cluster_a and cluster_b:
                     break
-            #cluster_b = [c for c in self.cluster_iteration[-1] if new_solution in c]
+
             cluster_merge = cluster_a.union(cluster_b)
             l, w = len(cluster_merge), self.S.shape[1]
             return (np.linalg.norm(itemgetter(*cluster_merge)(self.S)) * l * w) * 100 / self.total_volume
@@ -92,7 +134,7 @@ class Clustering:
         if self.cluster_iteration:
             cluster_a = set()
             cluster_b = set()
-            #cluster_a = [c for c in self.cluster_iteration[-1] if solution in c]
+            
             for c in self.cluster_iteration[-1]:
                 if (not cluster_a) and solution in c:
                     cluster_a = c
@@ -102,8 +144,7 @@ class Clustering:
                 
                 if cluster_a and cluster_b:
                     break
-            #cluster_a = [c for c in self.cluster_iteration[-1] if solution in c]
-            #cluster_b = [c for c in self.cluster_iteration[-1] if new_solution in c]
+
             cluster_merge = cluster_a.union(cluster_b)
             return len(cluster_merge) * 100 / len(self.S) 
         else:
@@ -131,21 +172,44 @@ class Clustering:
             self.rows_del.add(p[0])
         return d, p
 
-    def merge_minimal_distance_with_queue(self, limit_size_percen, volumen_percen):
+    def merge_minimal_distance_with_queue_treap(self, limit_size_percen, volumen_percen):
         k = None
         p = None
 
-        for dist_info, (i, j) in self.priorityqueue.items():
+
+        for dist_info, (i, j) in self.priorityqueue_treap.items():
+           
             if self.row_del_queue[i]:
+                print("continue_row: ", i )
                 continue
+            
             if self.limit_size_cluster(j, i) <= limit_size_percen and self.volumen(j, i) <= volumen_percen:
                 k = dist_info
                 p = (i, j)
                 break
-        if k:
-            #self.priorityqueue.remove(k)
+
+        if k != None:
             self.row_del_queue[p[0]] = True
             k = k[0]
+            
+        return k, p
+
+    def merge_minimal_distance_with_queue(self, limit_size_percen, volumen_percen):
+        k = None
+        p = None
+        for dist_merge, (i, j) in self.priorityqueue:
+           
+            if self.row_del_queue[i]:
+                continue
+
+            if self.limit_size_cluster(j, i) <= limit_size_percen and self.volumen(j, i) <= volumen_percen:
+                k = dist_merge  
+                p = (i, j)
+                break
+
+        if k != None:
+            self.row_del_queue[p[0]] = True
+        
         return k, p
 
     def merge_cluster(self, limit_size_percen, volumen_percen):
@@ -167,7 +231,6 @@ class Clustering:
         else:
             
             temp = set()
-            
             u = set()
             for e in self.cluster:
                 if e.intersection(p):
@@ -213,7 +276,6 @@ def text_to_numpy(all_solutions, params):
         else:
             solutions.append([float(e) for e in vector_solution])
         
-    
     return np.array(data), np.array(solutions)
 
 
@@ -233,7 +295,6 @@ class AgglomerativeConfig(object):
 
 def continuous_agglomerative(params, cfiles):
     
-
     info, S = text_to_numpy(cfiles, params)
     M = np.zeros((len(S), len(S)), dtype=object)
 
@@ -242,39 +303,23 @@ def continuous_agglomerative(params, cfiles):
 
     C = Clustering(S, M, params.typeproblem, params.agglomerative_clustering.cluster_size, params.agglomerative_clustering.volumen_size, params.agglomerative_clustering.distance_method)
     clusters = sorted([len(c) for c in C.cluster_iteration])
-    #clusters = 
+    
     if params.typeproblem == "discrete":
+        if len(clusters) > 500:
+            clusters = clusters[:500]
         min_clusters = max(min(clusters), 10)
+        
     else:
         pos_cluster = math.ceil(len(clusters)/3)
         if pos_cluster <= len(clusters):
             min_clusters = clusters[math.ceil(len(clusters)/3)]
         else:
             min_clusters = clusters[0]
-    #mean_clusters = math.trunc( sum(cluster_sizes) / 2.0 )
-    #upper_mean_clusters = math.trunc( (mean_clusters + max(cluster_sizes)) / 2.0 )
 
-    
-
-    #clusters = []
-    """for c in C.cluster_iteration:
-        if len(c) == min_clusters:
-            clusters = c.copy()
-            break
-            """
-    """    
-    labels = np.zeros(len(S), dtype=int)
-    for i, c in enumerate(clusters):
-        for e in c:
-            labels[e] = i 
-    """
-    
     algorithms = np.unique(info[:, 0])
 
     results = { algo: AgglomerativeConfig([], []) for algo in algorithms }
 
-    
-   
     for clusters in C.cluster_iteration:
         if len(clusters) < min_clusters:
             continue

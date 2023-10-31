@@ -1,5 +1,5 @@
 import numpy as np
-
+import pprint
 def text_to_numpy(all_solutions):
     data = []
     solutions = []
@@ -13,19 +13,26 @@ def text_to_numpy(all_solutions):
 
 def hash_solution(solutions, min_bound, max_bound, pf):
 
-    p = np.arange(min_bound, max_bound, pf).tolist()
+    p = np.arange(min_bound, max_bound + pf, pf).tolist()
+
     for i in range(len(solutions)):
         for j in range(len(solutions[i])):
             for k in range(len(p) - 1):
                 if(p[k] <= solutions[i][j] and solutions[i][j] <= p[k+1]):
                     solutions[i][j] = int(k)
                     break
+        print("b:", solutions[i])
         solutions[i] = hash(str(solutions[i]))
-    
+        print("a:", solutions[i])
+    #print(solutions) 
     return solutions
 
 def continuous_standard(params, cfiles):
-
+    #pp = pprint.PrettyPrinter(indent=4)
+    #pp.pprint(params)
+    print("min. bound:", params.standard_configuration.min_bound)
+    print("max. bound:", params.standard_configuration.max_bound)
+    print("pf:", params.standard_configuration.partition_factor)
     info, S = text_to_numpy(cfiles)
     S = hash_solution(S, params.standard_configuration.min_bound, params.standard_configuration.max_bound, params.standard_configuration.partition_factor)
 
