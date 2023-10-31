@@ -103,14 +103,25 @@ def get_params() -> Params:
     _names = request.form.getlist('name[]')
     _colors = request.form.getlist('color[]')
     treelayout = True if request.form.get('treelayout', False) == "true" else False
-    names = [e[0] for e in sorted(list(zip(_names, _colors)))]
+
+    names = []
+    colors = []
+    files = []
+
+    for n, c, f in sorted(zip(_names, _colors, _files), reverse=True):
+        names.append(n)
+        colors.append(c)
+        files.append(f)
+
+    """  names =sorted(_names)
     print("names:", _names, names)
 
     colors = [e[1] for e in sorted(list(zip(_names, _colors)))]
     print("colors:", _colors, colors)
 
     files = [e[1] for e in sorted(list(zip(_names, _files)))]
-    print("files:", _files, files)
+    print("files:", _files, files)"""
+    
     agglomerative_clustering = AgglomerativeClusteringParams(cluster_size, volumen_size, number_of_clusters, distance_method)
     standard_configuration = StandardParams(partition_factor, partition_value, min_bound, max_bound)
     params =  Params(bmin, best, nruns, partition_value, nodesize, arrowsize, treelayout, files, names, colors, hash_file, typeproblem, strategy_partition, agglomerative_clustering, standard_configuration)
