@@ -112,15 +112,6 @@ def get_params() -> Params:
         names.append(n)
         colors.append(c)
         files.append(f)
-
-    """  names =sorted(_names)
-    print("names:", _names, names)
-
-    colors = [e[1] for e in sorted(list(zip(_names, _colors)))]
-    print("colors:", _colors, colors)
-
-    files = [e[1] for e in sorted(list(zip(_names, _files)))]
-    print("files:", _files, files)"""
     
     agglomerative_clustering = AgglomerativeClusteringParams(cluster_size, volumen_size, number_of_clusters, distance_method)
     standard_configuration = StandardParams(partition_factor, partition_value, min_bound, max_bound)
@@ -338,10 +329,6 @@ def generate():
         return generate_from_file(params)
 
 errors = Blueprint('errors', __name__)
-
-@app.route("/test", methods=['GET'])
-def test():
-    print("TEST")
 
 @errors.app_errorhandler(Exception)
 def handle_unexpected_error(error):
