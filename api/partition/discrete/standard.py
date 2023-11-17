@@ -5,6 +5,7 @@ import operator
 from hashlib import sha256
 from pprint import pprint
 from copy import deepcopy
+from collections import Counter
 
 class Stats:
         def __init__(self):
@@ -121,22 +122,31 @@ def standard(datainput, c_client, all_solutions):
                 else:
                         if allFitness[sol] < fitness[cSols]:
                                 fitness[cSols] = allFitness[sol]
-        
+        info_analytics = {}
+        aggregation = []
         for k, data in partitions_idx_noset.items():
                 bin = [e[1] for e in data]
                 for i in range(0, len(bin)-1, 2):
-                        if c_client > 0 and (repr[bin[i]] != repr[bin[i+1]]):
-                          print(repr[bin[i]].encode('utf-8'))
+                        if c_client > 0:
                           sol1 = sha256(repr[bin[i]].encode('utf-8')).hexdigest()
                           sol2 = sha256(repr[bin[i+1]].encode('utf-8')).hexdigest()
+                          aggregation.append(sol1)
                           results.append("{},{},{},{},{}".format(k, fitness[repr[bin[i]]], sol1, fitness[repr[bin[i+1]]], sol2))  
+                          print("{},{},{},{},{}".format(k, fitness[repr[bin[i]]], sol1, fitness[repr[bin[i+1]]], sol2))
                         elif c_client == 0:
                           sol1 = sha256(bin[i].encode('utf-8')).hexdigest()
                           sol2 = sha256(bin[i+1].encode('utf-8')).hexdigest()
+                          
+                          aggregation.append(sol1)
                           results.append("{},{},{},{},{}".format(k, allFitness[bin[i]], sol1, allFitness[bin[i+1]], sol2))     
-        
-    
-        return results
+                
+                aggregation.append(sha256(repr[bin[-1]].encode('utf-8')).hexdigest())
+        #info_analytics = {k: info_analytics[k] for k in info_analytics if info_analytics[k][1] == 1}
+        info_analytics = Counter(aggregation)
+        pprint(info_analytics)
+        print(sum(info_analytics.values()))
+
+        return results, info_analytics
 
 
 

@@ -23,7 +23,7 @@ if (!file.exists(infile) ){
 }
  
 if (length(args) > 1) {
-   size_factor <- as.integer(args[2])
+   size_factor <- as.numeric(args[2])
    size_arrow <-   as.numeric(args[3])
 } else {
    size_factor <- 1
@@ -121,7 +121,7 @@ stn_decorate <- function(N)  {
   start_nodes <- grepl("start", V(N)$Type, fixed = TRUE)
   end_nodes <- grepl("end", V(N)$Type, fixed = TRUE)
   best_nodes <- grepl("best", V(N)$Type, fixed = TRUE)
-  
+
   V(N)[start_nodes]$color = start_ncol  # Color of start nodes
   V(N)[end_nodes]$color = end_run_ncol  # Color of end of runs nodes
   V(N)[best_nodes]$color = best_ncol   # Color of  best nodes
@@ -132,9 +132,12 @@ stn_decorate <- function(N)  {
   V(N)[grepl("best", V(N)$Type, fixed = TRUE)]$frame.color <- "white"
   
   # Shape of nodes
+  
+  
   V(N)$shape <- "sphere"  # circle is the default shape
-  V(N)[end_nodes]$shape = "triangle"  # Triangle for start nodes
+  V(N)[end_nodes]$shape = "triangle"  # Triangle for end nodes
   V(N)[start_nodes]$shape = "square"  # Square for start nodes
+  V(N)[best_nodes]$shape = "sphere"
   
   #print(V(N)$shape)
   # Size of Nodes Proportional to  incoming degree, 

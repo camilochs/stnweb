@@ -27,7 +27,7 @@ RUN npm install http-server -g
 
 COPY . /develop
 
-EXPOSE 5001
+#EXPOSE 5001
 EXPOSE 8081
 
 COPY docker/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh

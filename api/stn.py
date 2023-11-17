@@ -9,6 +9,7 @@ from partition.continuous.standard import continuous_standard
 from partition.continuous.agglomerative import continuous_agglomerative
 from partition.continuous.agglomerative import AgglomerativeConfig
 from io import BytesIO
+from pprint import pprint
 import glob
 import os
 import random
@@ -19,6 +20,7 @@ import re
 import functools
 import logging
 import sys
+from collections import Counter
 
 
 app = Flask(__name__)
@@ -156,7 +158,7 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
 
     start = time.time()
 
-    file = discrete_standard(contentLineFile, partition_value, cfiles)
+    file, info_analytics = discrete_standard(contentLineFile, partition_value, cfiles)
 
     end = time.time()
     print("Time: {}".format(end - start))
@@ -165,10 +167,11 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
     with open(filename, "w") as f:
         for line in file:
             f.write("{}\n".format(line))
+    return info_analytics
 
 def writing_file_continuous(content_files, params, cfiles):
     if params.strategy_partition == "standard":
-        results = continuous_standard(params, cfiles)
+        results, info_analytics = continuous_standard(params, cfiles)
         for algo, results in results.items():
             for i, file in enumerate(results):
                 if file[0] != "Run,Fitness1,Solution1,Fitness2,Solution2":
@@ -183,14 +186,20 @@ def writing_file_continuous(content_files, params, cfiles):
                         
     elif params.strategy_partition == "agglomerative":
         results, min_clusters = continuous_agglomerative(params, cfiles)
-
+        
         for algo, results_clustering in results.items():
-
             for i, file in enumerate(results_clustering.clustering):
+                
                 if file[0] != "Run,Fitness1,Solution1,Fitness2,Solution2":
                     _file =  ["Run,Fitness1,Solution1,Fitness2,Solution2"] + file[:]
                 else:
                     _file = file
+                
+                if  results_clustering.number_of_clusters[i] == 139:
+                    print(algo, i)
+                    for f in _file:
+                        print(f)
+                    print(results_clustering.number_of_clusters[i])
                 filename = "temp/{}-{}/{}.csv".format(params.hash_file, results_clustering.number_of_clusters[i], algo)
                 os.makedirs(os.path.dirname(filename), exist_ok=True)
                 with open(filename, "w") as f:
@@ -199,6 +208,8 @@ def writing_file_continuous(content_files, params, cfiles):
                         
         params.hash_file = f"{params.hash_file}-{min_clusters}"
 
+def sum_dict(dict1, dict2):
+    return {k: dict1.get(k, 0) + dict2.get(k, 0) for k in set(dict1) | set(dict2)}
 def process_partition(params):
 
     content_files = []
@@ -213,9 +224,11 @@ def process_partition(params):
                     content_files[index].contentLineFile = change_old_format(list(filter(None, file_compress.read().decode().split('\n'))))
         else:
             content_files[index].contentLineFile = change_old_format(list(filter(None, f.read().decode().split('\n'))))
+        
         filename = "temp/{}/{}.csv".format(params.hash_file, params.names[index])
         if params.strategy_partition == "agglomerative" or params.typeproblem == "continuous":
             content_files[index].contentLineFile = [ params.names[index] + ',' + e for e in content_files[index].contentLineFile]
+
         content_files[index].filename = filename
         content_files[index].index = index
 
@@ -223,8 +236,22 @@ def process_partition(params):
     print(params.typeproblem, "----", params.strategy_partition)
 
     if params.typeproblem == "discrete" and params.strategy_partition == 'standard':
-        for file in content_files:
-            writing_file_discrete(file.filename, file.contentLineFile, params.partition_value, params.strategy_partition, all_solutions)
+        info_analytics = {}
+        for i, file in enumerate(content_files):
+            info = writing_file_discrete(file.filename, file.contentLineFile, params.partition_value, params.strategy_partition, all_solutions)
+            info_analytics = sum_dict(info, info_analytics)
+           
+        #info_analytics  =  [info_analytics[e][0] for e in info_analytics if info_analytics[e][1] == 1]
+        #print(sum(1 for v in info_analytics.values() if v == 1))
+ 
+        info_analytics = Counter(info_analytics.values())
+        suma = 0
+        for k in sorted(info_analytics):
+            for _k in range(info_analytics[k]):
+                print(k, end=",")
+            suma += (k*info_analytics[k])
+        print()
+        input()
     elif params.typeproblem == "discrete" and params.strategy_partition == 'agglomerative':
         writing_file_continuous(content_files, params, all_solutions)
     elif params.typeproblem == "continuous":
@@ -259,8 +286,8 @@ def generate_from_files(params : Params):
     with Popen("Rscript metrics-merged.R {}".format("{}-stn-merged.RData".format(params.hash_file)), stdout=PIPE, stderr=None, shell=True) as process:
         output = process.communicate()[0]
         print("OK: {}".format(output))  
-        shutil.rmtree("temp/" + params.hash_file)
-        shutil.rmtree("temp/{}-stn".format(params.hash_file))
+        #shutil.rmtree("temp/" + params.hash_file)
+        #shutil.rmtree("temp/{}-stn".format(params.hash_file))
 
     return send_file(path, mimetype='application/pdf', as_attachment=True)
 

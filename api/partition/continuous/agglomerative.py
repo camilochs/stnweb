@@ -9,8 +9,32 @@ from collections import Counter
 import heapq
 import treap
 import copy
+import random
 from itertools import product
 from multiprocessing import Pool, Lock
+from pprint import pprint
+from ordered_set import OrderedSet
+
+class Node(object):
+
+    def __init__(self, it, idx_line, fitness, solution):
+        self.it = it
+        self.idx_line = idx_line
+        self.fitness = fitness
+        self.solution = solution
+
+    def __repr__(self):
+        return f"Node({self.it}, {self.idx_line}, {self.fitness}, {self.solution})"
+    def __eq__(self, other):
+        if isinstance(other, Node):
+            return ((self.idx_line == other.idx_line) and (self.it == other.it) and (self.fitness == other.fitness) and (self.solution == other.solution) )
+        else:
+            return False
+            
+    def __hash__(self):
+        return hash((self.idx_line, self.it, self.fitness, self.solution))
+        
+
 
 class Clustering:
     def __init__(self, S, M, typeproblem, limit_cluster_size_percent, limit_cluster_volume_percent, distance_method):
@@ -38,6 +62,11 @@ class Clustering:
         self.total_volume = np.linalg.norm(self.S) * S.shape[0] * S.shape[1]
 
         start = time.time()
+
+        for e in range(len(self.M)):
+                self.cluster.add(frozenset({e}))
+        self.cluster_iteration.append(self.cluster.copy())
+        self.cluster = set()
         while self.merge_cluster(limit_cluster_size_percent, limit_cluster_volume_percent): 
             pass
             
@@ -86,6 +115,7 @@ class Clustering:
             for j in range(len(self.S)):  
                 if i <= j:
                     continue
+                    
                 if distance_method == "euclidean":
                     self.M[i, j] = distance.euclidean(self.S[i], self.S[j])
                 elif distance_method == "manhattan":
@@ -93,9 +123,13 @@ class Clustering:
                 elif distance_method == "hamming":
                 
                     _i = bytearray(self.S[i]).decode("utf-8") 
+                    
                     _j = bytearray(self.S[j]).decode("utf-8") 
+                
                     self.M[i, j] =  round(distance.hamming(self.hamming_cache[_i], self.hamming_cache[_j]) * len(self.S[i]))
-                 
+                    """if self.M[i,j] != 0:
+                        print(i, j,self.M[i,j], len(self.S[i]), _i, _j) 
+                        input()"""
                 heapq.heappush(self.priorityqueue, (self.M[i, j],  (i, j)))
                 sum_dist += self.M[i,j]
             print(f"complete (processing distances): { i * 100 / len(self.S):.2f} %", end='\r')
@@ -104,6 +138,10 @@ class Clustering:
             self.hamming_cache.clear()
         self.priorityqueue = sorted(self.priorityqueue)
         
+        
+        #pprint(self.M)
+        print(*self.M, sep="\n")
+        pprint(self.M.shape)
         print("distance: ", distance_method)
         print("sum_dist: ", sum_dist)
      
@@ -118,7 +156,7 @@ class Clustering:
 
                 if (not cluster_b) and new_solution in c:
                     cluster_b = c
-                
+
                 if cluster_a and cluster_b:
                     break
 
@@ -213,14 +251,13 @@ class Clustering:
     def merge_cluster(self, limit_size_percen, volumen_percen):
         
         if self.total_cluster == 1:
-            #print("M:", self.M.shape)
             return False
-        
+
         d, p = self.merge_minimal_distance_with_queue(limit_size_percen, volumen_percen)
         if not p:
             return False
 
-        if len(self.cluster) == 0:
+        if len(self.cluster_iteration) == 1:
             for e in range(len(self.M)):
                 if not set(p).intersection({e}):
                     self.cluster.add(frozenset({e}))
@@ -257,28 +294,37 @@ def check_binary(string):
         return False
     return True
 
+
+
 def text_to_numpy(all_solutions, params):
-    data = []
-    solutions = []
+    
+    data_nodes = {}
+    index_line = 0
     for line in all_solutions:
-        if not line:
-            continue
-        name, it, fitness, *vector_solution = line.split(',')
-        data.append([name, int(it), float(fitness)])
+        name, it, fitness, *data_next_node = line.split(',')
+        if name not in data_nodes:
+            if len(data_nodes) > 0: # keeps the correlative of the line index
+                index_line += 1
+            data_nodes[name] = OrderedSet()
+        else:
+            if data_nodes[name][-1].it != int(it): # keeps the correlative of the line index
+                index_line += 1
+
         if params.typeproblem == "discrete":
-        #if distance_method == "hamming" or distance_method == "euclidean" or distance_method == "manhattan":
-            data.append([name, int(it), str(vector_solution[1])])
-            solutions.append(bytearray(map(ord, vector_solution[0])))
-            solutions.append(bytearray(map(ord, vector_solution[2])))
+            data_nodes[name].add(Node(int(it), index_line, float(fitness), data_next_node[0]))
+            data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), data_next_node[2]))
        
         else:
-            solutions.append([float(e) for e in vector_solution])
-        
-    return np.array(data), np.array(solutions)
+            data_nodes[name].add(Node(int(it), index_line, float(fitness), [float(elem) for elem in data_next_node[0]]))
+            data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), [float(elem) for elem in data_next_node[2]]))
+        index_line += 1
+
+    solutions = [bytearray(map(ord, node.solution)) for algorithm in data_nodes for node in data_nodes[algorithm]]
+    print("len: ", len(all_solutions)*2)
+    return data_nodes, np.array(solutions), np.array(solutions)
 
 
-def get_hashes_cluster(S, clusters):
-
+def get_hashes_cluster(clusters):
     hashes = {}
     for i, c in enumerate(clusters):
         for row in c:
@@ -293,18 +339,21 @@ class AgglomerativeConfig(object):
 
 def continuous_agglomerative(params, cfiles):
     
-    info, S = text_to_numpy(cfiles, params)
-    M = np.zeros((len(S), len(S)), dtype=object)
-
+    data_nodes, S, S_post_processing = text_to_numpy(cfiles, params)
+    M = np.zeros((len(S_post_processing), len(S_post_processing)), dtype=object)
+    print("S: ", len(S))
+    print("M: ", len(M))
+    print("S_post: ", len(S_post_processing))
     print("params.agglomerative_clustering.cluster_size: ", params.agglomerative_clustering.cluster_size)
     print("params.agglomerative_clustering.volumen_size: ", params.agglomerative_clustering.volumen_size)
 
-    C = Clustering(S, M, params.typeproblem, params.agglomerative_clustering.cluster_size, params.agglomerative_clustering.volumen_size, params.agglomerative_clustering.distance_method)
+    C = Clustering(S_post_processing, M, params.typeproblem, params.agglomerative_clustering.cluster_size, params.agglomerative_clustering.volumen_size, params.agglomerative_clustering.distance_method)
+    C.cluster_iteration = [c for c in C.cluster_iteration if len(S) >= len(c)]
     clusters = sorted([len(c) for c in C.cluster_iteration])
     
+    print("min clusters:", min(clusters))
+    print("max clusters:", max(clusters))
     if params.typeproblem == "discrete":
-        if len(clusters) > 500:
-            clusters = clusters[:500]
         min_clusters = max(min(clusters), 10)
         
     else:
@@ -314,33 +363,61 @@ def continuous_agglomerative(params, cfiles):
         else:
             min_clusters = clusters[0]
 
-    algorithms = np.unique(info[:, 0])
 
-    results = { algo: AgglomerativeConfig([], []) for algo in algorithms }
-
-    for clusters in C.cluster_iteration:
-        if len(clusters) < min_clusters:
+    results = { algo: AgglomerativeConfig([], []) for algo in data_nodes.keys() }
+    info_analytics = {}
+    aggregation = {}
+    for cluster in C.cluster_iteration:
+        if len(cluster) < min_clusters:
             continue
-        hashes = get_hashes_cluster(S, clusters)
-        for algo in algorithms:
+        hashes = get_hashes_cluster(cluster)
+        #for h in sorted(hashes):
+        #    print(h, hashes[h])
+        #input()
+        if len(cluster) not in aggregation:
+            aggregation[len(cluster)] = []
+
+        for algorithm, nodes_data in data_nodes.items():
             result = ["Run,Fitness1,Solution1,Fitness2,Solution2"]
-            idx = 1
-            for i in range(len(S) - 1):
-                if info[i][0] != algo:
+            i = 0
+            while i < (len(nodes_data) - 1):
+                if nodes_data[i].it != nodes_data[i+1].it:
+                    aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
+                    i += 1
                     continue
-                    
-                if idx != info[i+1][1]:
-                    idx = info[i+1][1]
-                    continue
-
-                it = info[i][1]
-                fitnnes1 =  info[i][2]
-                sol1 = hashes[i]
-                fitnnes2 =  info[i+1][2]
-                sol2 = hashes[i+1]
-
-                result.append("{},{},{},{},{}".format(it, fitnnes1, sol1, fitnnes2, sol2))
-            results[algo].clustering.append(result)
-            results[algo].number_of_clusters.append(len(clusters))
-    print("Min clusters:", min_clusters)
+                info_node = "{},{},{},{},{}".format(nodes_data[i].it,
+                                                    nodes_data[i].fitness,
+                                                    hashes[nodes_data[i].idx_line],
+                                                    nodes_data[i+1].fitness,
+                                                    hashes[nodes_data[i+1].idx_line])
+                aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
+                #print(info_node)
+                result.append(info_node)
+                
+                i += 1
+                #print(info_node)
+                #input()
+            aggregation[len(cluster)].append(hashes[nodes_data[-1].idx_line])
+            #input()
+            results[algorithm].clustering.append(result)
+            results[algorithm].number_of_clusters.append(len(cluster))
+            #print(f"clustering {algo}: ", results[algo].clustering)
+            #print(f"number of clusters {algo}: ", results[algo].number_of_clusters)
+            #input()
+    for cluster_size, v in aggregation.items():
+        if cluster_size != 120 and cluster_size != 175 and cluster_size != 237:
+            continue
+        agg = Counter(v)
+        agg = Counter(agg.values())
+        suma = 0
+        #input()
+        for k in sorted(agg):
+            for _ in range(agg[k]):
+                print(k, end=",")
+            suma += (k*agg[k])
+        print()
+        print(cluster_size, suma)
+        print("----")
+        input()
     return results, min_clusters
+
