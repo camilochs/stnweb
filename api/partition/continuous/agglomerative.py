@@ -418,6 +418,5 @@ def continuous_agglomerative(params, cfiles):
         print()
         print(cluster_size, suma)
         print("----")
-        input()
     return results, min_clusters
 

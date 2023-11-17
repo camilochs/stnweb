@@ -250,8 +250,6 @@ def process_partition(params):
             for _k in range(info_analytics[k]):
                 print(k, end=",")
             suma += (k*info_analytics[k])
-        print()
-        input()
     elif params.typeproblem == "discrete" and params.strategy_partition == 'agglomerative':
         writing_file_continuous(content_files, params, all_solutions)
     elif params.typeproblem == "continuous":
