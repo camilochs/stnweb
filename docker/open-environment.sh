@@ -12,6 +12,7 @@
 image_name="stnweb:v1.1"
 # -p 5001:5001 \
 docker run -ti \
+            -p 5001:5001 \
             -p 8081:8081 \
             --rm $image_name \
             --name $image_name \
