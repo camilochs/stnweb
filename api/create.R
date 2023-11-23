@@ -131,11 +131,20 @@ stn_create <- function(instance)  {
     ledges[[i]] <- trace[,c("node1", "node2")]
   }
   
+  print("----")
+  print(lnodes[[5]]$Fitness)
+  print("----")
   # combine the list of nodes into one dataframe and
   # group by (Node,Fitness) to identify unique nodes and count them
   nodes <- ddply((do.call("rbind", lnodes)), .(Node,Fitness), nrow)
   colnames(nodes) <- c("Node", "Fitness", "Count")
+
+
   nodesu<- nodes[!duplicated(nodes$Node), ]  # eliminate duplicates from dataframe, in case node ID us duplicated
+  print(" begin nodesu ")
+  print(nodesu$Node)
+  print(" end nodesu ")
+
   # combine the list of edges into one dataframe and
   # group by (node1,node2) to identify unique edges and count them
   edges <- ddply(do.call("rbind", ledges), .(node1,node2), nrow)
@@ -148,11 +157,15 @@ stn_create <- function(instance)  {
     best_ids <- which(V(STN)$Fitness <= best)
   } else {    # maximisation  
     best_ids <- which(V(STN)$Fitness >= best)
+    cat(V(STN)$Fitness)
   }
   # Four types of nodes, useful for visualisation: Start, End, Best and Standard.
   V(STN)$Type <- "medium"  # Default type
   V(STN)[end_ids]$Type <- "end"
   V(STN)[start_ids]$Type <- "start"
+
+  #print.data.frame(V(STN)[end_ids], max = NULL)
+  #print("xxxxxx")
   V(STN)[best_ids]$Type <- "best"
   
   fname <-  gsub('.{4}$', '', instance) # removes  (last 4 characters, .ext) from file to use as name

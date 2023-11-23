@@ -324,11 +324,18 @@ def text_to_numpy(all_solutions, params):
     return data_nodes, np.array(solutions), np.array(solutions)
 
 
-def get_hashes_cluster(clusters):
+def get_hashes_cluster(clusters, data_nodes):
+    import itertools
+
     hashes = {}
+    nodes = list(itertools.chain.from_iterable([e for e in data_nodes.values()]))
+ 
     for i, c in enumerate(clusters):
+        choice_cluster = max(c)
         for row in c:
-            hashes[row] = sha256(str(i).encode('utf-8')).hexdigest()
+            #print("-----", len(clusters), len(c), i, row, len(nodes), choice_cluster)
+            #input()
+            hashes[row] = sha256(str(nodes[choice_cluster].solution).encode('utf-8')).hexdigest()
     return hashes
 
 class AgglomerativeConfig(object):
@@ -348,7 +355,7 @@ def continuous_agglomerative(params, cfiles):
     print("params.agglomerative_clustering.volumen_size: ", params.agglomerative_clustering.volumen_size)
 
     C = Clustering(S_post_processing, M, params.typeproblem, params.agglomerative_clustering.cluster_size, params.agglomerative_clustering.volumen_size, params.agglomerative_clustering.distance_method)
-    C.cluster_iteration = [c for c in C.cluster_iteration if len(S) >= len(c)]
+    C.cluster_iteration = [c for c in C.cluster_iteration]
     clusters = sorted([len(c) for c in C.cluster_iteration])
     
     print("min clusters:", min(clusters))
@@ -370,7 +377,8 @@ def continuous_agglomerative(params, cfiles):
     for cluster in C.cluster_iteration:
         if len(cluster) < min_clusters:
             continue
-        hashes = get_hashes_cluster(cluster)
+        
+        hashes = get_hashes_cluster(cluster, data_nodes)
         #for h in sorted(hashes):
         #    print(h, hashes[h])
         #input()
@@ -380,6 +388,8 @@ def continuous_agglomerative(params, cfiles):
         for algorithm, nodes_data in data_nodes.items():
             result = ["Run,Fitness1,Solution1,Fitness2,Solution2"]
             i = 0
+            
+
             while i < (len(nodes_data) - 1):
                 if nodes_data[i].it != nodes_data[i+1].it:
                     aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
@@ -405,7 +415,7 @@ def continuous_agglomerative(params, cfiles):
             #print(f"number of clusters {algo}: ", results[algo].number_of_clusters)
             #input()
     for cluster_size, v in aggregation.items():
-        if cluster_size != 120 and cluster_size != 175 and cluster_size != 237:
+        if cluster_size != 237 and cluster_size != 175 and cluster_size != 120:
             continue
         agg = Counter(v)
         agg = Counter(agg.values())
@@ -417,6 +427,7 @@ def continuous_agglomerative(params, cfiles):
             suma += (k*agg[k])
         print()
         print(cluster_size, suma)
+        #input()
         print("----")
     return results, min_clusters
 

@@ -1,3 +1,9 @@
 api/temp/
 api/temp/*
+test/
 test/*
+results/
+results/*
+*.pyc
+analytics/
+analytics/*
