@@ -243,7 +243,6 @@ def process_partition(params):
            
         #info_analytics  =  [info_analytics[e][0] for e in info_analytics if info_analytics[e][1] == 1]
         #print(sum(1 for v in info_analytics.values() if v == 1))
- 
         info_analytics = Counter(info_analytics.values())
         suma = 0
         for k in sorted(info_analytics):
@@ -341,6 +340,27 @@ def get_metrics():
     hash_file = "temp/" + request.form.get('hash_file', "")
     print(hash_file)
     return send_file(hash_file, mimetype='text/csv', as_attachment=True)
+
+def get_gpt_response(prompt):
+    import g4f
+    print(prompt)
+    response = g4f.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        provider=g4f.Provider.Bing,
+        messages=[{"role": "user", "content": prompt}],
+        timeout=15,  # in secs
+    )
+    print("GPT:", response)
+    return response
+
+@app.route("/gpt_summary", methods=['POST'])
+def get_get_summary():
+    features_file = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('min_cluster', '')}.txt"
+    print(features_file)
+    with open(features_file, 'r') as f:
+        prompt = f.read()
+        return get_gpt_response(prompt).replace("\n", "<br>")
+
 
 @app.route("/stn", methods=['POST'])
 def generate():

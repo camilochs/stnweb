@@ -2,18 +2,18 @@
 from scipy.spatial import distance
 from operator import itemgetter
 from hashlib import sha256
+from itertools import product
+from multiprocessing import Pool, Lock
+from pprint import pprint
+from ordered_set import OrderedSet
+from utils.features_extraction import information_extraction
 import numpy as np
 import time
 import math
 from collections import Counter
 import heapq
-import treap
 import copy
-import random
-from itertools import product
-from multiprocessing import Pool, Lock
-from pprint import pprint
-from ordered_set import OrderedSet
+
 
 class Node(object):
 
@@ -22,9 +22,14 @@ class Node(object):
         self.idx_line = idx_line
         self.fitness = fitness
         self.solution = solution
+        self.cluster_hash = ""
+
+    def add_cluster_hash(self, cluster_hash):
+        self.cluster_hash = cluster_hash
 
     def __repr__(self):
-        return f"Node({self.it}, {self.idx_line}, {self.fitness}, {self.solution})"
+        return f"Node({self.it}, {self.idx_line}, {self.fitness}, {self.cluster_hash})"
+    
     def __eq__(self, other):
         if isinstance(other, Node):
             return ((self.idx_line == other.idx_line) and (self.it == other.it) and (self.fitness == other.fitness) and (self.solution == other.solution) )
@@ -49,7 +54,6 @@ class Clustering:
         self.row_del_queue = { i : False for i in range(len(self.S))}
         self.total_cluster = len(self.S)
         self.priorityqueue = []
-        self.priorityqueue_treap = treap.treap()
 
         if distance_method == 'hamming':
             self.hamming_cache = {bytearray(e).decode("utf-8") : e for e in self.S}
@@ -208,28 +212,6 @@ class Clustering:
             self.rows_del.add(p[0])
         return d, p
 
-    def merge_minimal_distance_with_queue_treap(self, limit_size_percen, volumen_percen):
-        k = None
-        p = None
-
-
-        for dist_info, (i, j) in self.priorityqueue_treap.items():
-           
-            if self.row_del_queue[i]:
-                print("continue_row: ", i )
-                continue
-            
-            if self.limit_size_cluster(j, i) <= limit_size_percen and self.volumen(j, i) <= volumen_percen:
-                k = dist_info
-                p = (i, j)
-                break
-
-        if k != None:
-            self.row_del_queue[p[0]] = True
-            k = k[0]
-            
-        return k, p
-
     def merge_minimal_distance_with_queue(self, limit_size_percen, volumen_percen):
         k = None
         p = None
@@ -372,24 +354,23 @@ def continuous_agglomerative(params, cfiles):
 
 
     results = { algo: AgglomerativeConfig([], []) for algo in data_nodes.keys() }
-    info_analytics = {}
+
     aggregation = {}
+    all_information = {}
     for cluster in C.cluster_iteration:
         if len(cluster) < min_clusters:
             continue
         
         hashes = get_hashes_cluster(cluster, data_nodes)
-        #for h in sorted(hashes):
-        #    print(h, hashes[h])
-        #input()
+
         if len(cluster) not in aggregation:
             aggregation[len(cluster)] = []
+            all_information[len(cluster)] = {}
 
-        for algorithm, nodes_data in data_nodes.items():
+        algorithm_data_nodes = data_nodes.copy()
+        for algorithm, nodes_data in algorithm_data_nodes.items():
             result = ["Run,Fitness1,Solution1,Fitness2,Solution2"]
             i = 0
-            
-
             while i < (len(nodes_data) - 1):
                 if nodes_data[i].it != nodes_data[i+1].it:
                     aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
@@ -400,20 +381,20 @@ def continuous_agglomerative(params, cfiles):
                                                     hashes[nodes_data[i].idx_line],
                                                     nodes_data[i+1].fitness,
                                                     hashes[nodes_data[i+1].idx_line])
-                aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
-                #print(info_node)
-                result.append(info_node)
                 
+                nodes_data[i].add_cluster_hash(hashes[nodes_data[i].idx_line])
+                aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
+                result.append(info_node)
                 i += 1
-                #print(info_node)
-                #input()
             aggregation[len(cluster)].append(hashes[nodes_data[-1].idx_line])
-            #input()
+            nodes_data[i].add_cluster_hash(hashes[nodes_data[-1].idx_line])
             results[algorithm].clustering.append(result)
             results[algorithm].number_of_clusters.append(len(cluster))
-            #print(f"clustering {algo}: ", results[algo].clustering)
-            #print(f"number of clusters {algo}: ", results[algo].number_of_clusters)
-            #input()
+        
+        all_information[len(cluster)] = copy.deepcopy(algorithm_data_nodes)
+
+    information_extraction(all_information, params)
+    
     for cluster_size, v in aggregation.items():
         if cluster_size != 237 and cluster_size != 175 and cluster_size != 120:
             continue

@@ -21,7 +21,7 @@ RUN R -e "install.packages(c('igraph', 'dply', 'tidyr', 'gtools'), dependencies=
 
 # Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir ordered_set numpy==1.23.5 scipy==1.9.1 Werkzeug==2.2.2 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 gunicorn==21.2.0 
+    pip install --no-cache-dir ordered_set g4f==0.1.9.0 numpy==1.23.5 scipy==1.9.1 Werkzeug==2.2.2 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 gunicorn==21.2.0 
 
 RUN npm install http-server -g
 
