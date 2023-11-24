@@ -38,7 +38,7 @@ def information_extraction(all_data, params):
 
         These are the rules of the system:
 
-        - Rule 1: The more nodes pointing to the best fitness, the higher the algorithm's quality because it can find the best result.
+        - Rule 1: The more nodes pointing to the best fitness and with average fitness better (this is a {type_problem} problem), the higher the algorithm's quality because it can find the best result.
         - Rule 2: The algorithm that has more overlap (merge) is likely to be more robust.
 
         Now, considering these rules, take a look at this data: {info_algorithm}

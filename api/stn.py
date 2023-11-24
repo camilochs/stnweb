@@ -1,6 +1,4 @@
-from curses import pair_content
 from flask import Blueprint, jsonify
-from zlib import Z_BEST_COMPRESSION
 from flask import Flask, send_file, request
 from flask_cors import CORS
 from subprocess import PIPE, Popen
@@ -10,16 +8,12 @@ from partition.continuous.agglomerative import continuous_agglomerative
 from partition.continuous.agglomerative import AgglomerativeConfig
 from io import BytesIO
 from pprint import pprint
-import glob
 import os
-import random
 import time
 import tarfile
 import shutil
 import re 
 import functools
-import logging
-import sys
 from collections import Counter
 
 
