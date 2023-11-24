@@ -39,14 +39,14 @@ def information_extraction(all_data, params):
         These are the rules of the system:
 
         - Rule 1: The more nodes pointing to the best fitness and with average fitness better (this is a {type_problem} problem), the higher the algorithm's quality because it can find the best result.
-        - Rule 2: The algorithm that has more overlap (merge) is likely to be more robust.
+        - Rule 2: The algorithm that has more overlap (merge) is likely to be more robust. If and only if there is best fitness.
 
         Now, considering these rules, take a look at this data: {info_algorithm}
 
         Finally, give me a general interpretation that allows comparing both algorithms and determining which one is better. 
         
         Important:
-         - You response must has a limit to 300 tokens with details in one paragraph.   
+         - You response must has a limit to 300 tokens with details.   
          - You response must be in HTML format.
          - It is forbidden for the response to be in markdown format.
          - In the answer add bold the name of each algorithm.
