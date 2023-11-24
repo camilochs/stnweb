@@ -342,7 +342,7 @@ def get_gpt_response(prompt):
         model="gpt-3.5-turbo",
         provider=g4f.Provider.Bing,
         messages=[{"role": "user", "content": prompt}],
-        timeout=15,  # in secs
+        timeout=30,  # in secs
     )
     print("GPT:", response)
     return response
