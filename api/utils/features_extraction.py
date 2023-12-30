@@ -1,7 +1,18 @@
 from collections import Counter
+from utils.gpt import get_template
 import numpy as np
 import os 
 from pprint import pprint
+
+def build_info_agglomerative(all_solutions, params):
+    if params.agglomerative_clustering.number_of_clusters == None:
+        params.agglomerative_clustering.number_of_clusters = min(all_solutions.keys())
+
+    return f""" 
+    \t- cluster size: {params.agglomerative_clustering.cluster_size}
+    \t- volumen size: {params.agglomerative_clustering.volumen_size}
+    \t- distance method: {params.agglomerative_clustering.distance_method}
+    """ + "\t- cluster_number: {number_of_clusters}"
 
 def build_info_by_algorithm(info):
     text = "\n"
@@ -11,6 +22,8 @@ def build_info_by_algorithm(info):
         text += f"\t - {algorithm} has {data['total_merge_local']} percentage of overlapping among all the nodes. \n"
         text += f"\t - {algorithm} among its {data['total_trajectory']} trajectories averages {data['mean_last_fitness']} among all its fitness. \n"
     return text
+
+
 def information_extraction(all_data, params):
    
     for number_cluster, algorithm_graphs in all_data.items():
@@ -34,32 +47,24 @@ def information_extraction(all_data, params):
             #print(algorithm, number_cluster, info[algorithm])
             #input()
         
-        template = """
-
-        These are the rules of the system:
-
-        - Rule 1: The more nodes pointing to the best fitness and with average fitness better (this is a {type_problem} problem), the higher the algorithm's quality because it can find the best result.
-        - Rule 2: The algorithm that has more overlap (merge) is likely to be more robust. If and only if there is best fitness.
-
-        Now, considering these rules, take a look at this data: {info_algorithm}
-
-        Finally, give me a general interpretation that allows comparing both algorithms and determining which one is better. 
-        
-        Important:
-         - You response must has a limit to 300 tokens with details.   
-         - You response must be in HTML format.
-         - It is forbidden for the response to be in markdown format.
-         - In the answer add bold the name of each algorithm.
-         - This is a {type_problem} optimization problem. 
-
-        """
+        query = get_template()
 
         new_folder = f"temp/{params.hash_file}"
         if not os.path.exists(f"temp/{params.hash_file}"):
             os.makedirs(new_folder)
-        with open(f'{new_folder}/features-{number_cluster}.txt', 'w') as fp:
-            prompt = template.replace("{type_problem}", 'minimizing' if params.bmin == 1 else 'maximizing')
-            prompt = prompt.replace("{info_algorithm}", build_info_by_algorithm(info))
-            fp.write(prompt)
+        """with open(f'{new_folder}/features-{number_cluster}-context.txt', 'w') as fp:
+            prompt_context = context.replace("{type_problem}", 'minimizing' if params.bmin == 1 else 'maximizing')
+            prompt_context = prompt_context.replace("{min_cluster}", str(min(all_data.keys())))
+            prompt_context = prompt_context.replace("{max_cluster}", str(max(all_data.keys())))
+            fp.write(prompt_context)"""
+
+        with open(f'{new_folder}/features-{number_cluster}-query.txt', 'w') as fp:
+            prompt_query = query.replace("{info_algorithm}", build_info_by_algorithm(info))
+            prompt_query = prompt_query.replace("{type_problem}", 'minimizing' if params.bmin == 1 else 'maximizing')
+            prompt_query = prompt_query.replace("{agglomerative_params}", build_info_agglomerative(all_data, params))
+            prompt_query = prompt_query.replace("{min_cluster}", str(min(all_data.keys())))
+            prompt_query = prompt_query.replace("{max_cluster}", str(max(all_data.keys())))
+
+            fp.write(prompt_query)
 
     

@@ -8,14 +8,15 @@ from partition.continuous.agglomerative import continuous_agglomerative
 from partition.continuous.agglomerative import AgglomerativeConfig
 from io import BytesIO
 from pprint import pprint
+from collections import Counter
+#from utils.gpt import get_response
 import os
 import time
 import tarfile
 import shutil
 import re 
 import functools
-from collections import Counter
-
+import g4f
 
 app = Flask(__name__)
 CORS(app)
@@ -128,11 +129,10 @@ def get_params() -> Params:
     return params
     
     
-def change_old_format(a):
+def change_old_format_discrete(a):
     a = [re.sub("(\s+)?[ ,\t](\s+)?", ",", a[i].strip()) for i in range(0, len(a))]
     new_content = [','.join(a[i].split(',')[:3]) + ',' + ','.join(a[i+1].split(',')[1:3]) for i in range(0, len(a)-1) 
-    if len(a[i-1].split(',')) <= 3 and a[i].split(',')[0] == a[i+1].split(',')[0]]
-
+                        if len(a[i-1].split(',')) <= 3 and a[i].split(',')[0] == a[i+1].split(',')[0]]
     return new_content or a
 
 def is_int(str):
@@ -165,7 +165,7 @@ def writing_file_discrete(filename, contentLineFile, partition_value, strategy_p
 
 def writing_file_continuous(content_files, params, cfiles):
     if params.strategy_partition == "standard":
-        results, info_analytics = continuous_standard(params, cfiles)
+        results = continuous_standard(params, cfiles)
         for algo, results in results.items():
             for i, file in enumerate(results):
                 if file[0] != "Run,Fitness1,Solution1,Fitness2,Solution2":
@@ -188,12 +188,6 @@ def writing_file_continuous(content_files, params, cfiles):
                     _file =  ["Run,Fitness1,Solution1,Fitness2,Solution2"] + file[:]
                 else:
                     _file = file
-                
-                if  results_clustering.number_of_clusters[i] == 139:
-                    print(algo, i)
-                    for f in _file:
-                        print(f)
-                    print(results_clustering.number_of_clusters[i])
                 filename = "temp/{}-{}/{}.csv".format(params.hash_file, results_clustering.number_of_clusters[i], algo)
                 os.makedirs(os.path.dirname(filename), exist_ok=True)
                 with open(filename, "w") as f:
@@ -204,6 +198,7 @@ def writing_file_continuous(content_files, params, cfiles):
 
 def sum_dict(dict1, dict2):
     return {k: dict1.get(k, 0) + dict2.get(k, 0) for k in set(dict1) | set(dict2)}
+
 def process_partition(params):
 
     content_files = []
@@ -215,14 +210,14 @@ def process_partition(params):
             with tarfile.open(name=None, fileobj=BytesIO(f.read())) as f_compress:
                 for entry in f_compress:  
                     file_compress = f_compress.extractfile(entry)
-                    content_files[index].contentLineFile = change_old_format(list(filter(None, file_compress.read().decode().split('\n'))))
+                    content_files[index].contentLineFile = change_old_format_discrete(list(filter(None, file_compress.read().decode().split('\n'))))
         else:
-            content_files[index].contentLineFile = change_old_format(list(filter(None, f.read().decode().split('\n'))))
+            content_files[index].contentLineFile = change_old_format_discrete(list(filter(None, f.read().decode().split('\n'))))
         
         filename = "temp/{}/{}.csv".format(params.hash_file, params.names[index])
         if params.strategy_partition == "agglomerative" or params.typeproblem == "continuous":
             content_files[index].contentLineFile = [ params.names[index] + ',' + e for e in content_files[index].contentLineFile]
-
+              
         content_files[index].filename = filename
         content_files[index].index = index
 
@@ -335,27 +330,24 @@ def get_metrics():
     print(hash_file)
     return send_file(hash_file, mimetype='text/csv', as_attachment=True)
 
-def get_gpt_response(prompt):
-    import g4f
-    print(prompt)
-    response = g4f.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        provider=g4f.Provider.Bing,
-        messages=[{"role": "user", "content": prompt}],
-        timeout=30,  # in secs
-    )
-    print("GPT:", response)
-    return response
 
-@app.route("/gpt_summary", methods=['POST'])
+""" @app.route("/gpt_summary", methods=['POST'])
 def get_get_summary():
-    features_file = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('min_cluster', '')}.txt"
-    print(features_file)
-    with open(features_file, 'r') as f:
-        prompt = f.read()
-        return get_gpt_response(prompt).replace("\n", "<br>")
-
-
+    context = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('number_of_cluster', '')}-context.txt"
+    query = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('number_of_cluster', '')}-query.txt"
+    cluster_size_selected = request.form.get('number_of_cluster', '')
+    print(context)
+    print(query)
+    try:
+        with open(query, 'r') as f2:
+            prompt_query = f2.read().replace("{number_of_clusters}", cluster_size_selected)
+            print(prompt_query)
+            response = get_response(prompt_query)
+            pprint(response)
+            return response
+    except:
+        return {} """
+    
 @app.route("/stn", methods=['POST'])
 def generate():
     params : Params = get_params()

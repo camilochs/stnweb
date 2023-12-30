@@ -17,12 +17,13 @@ import copy
 
 class Node(object):
 
-    def __init__(self, it, idx_line, fitness, solution):
+    def __init__(self, it, idx_line, fitness, solution, type_problem="discrete"):
         self.it = it
         self.idx_line = idx_line
         self.fitness = fitness
         self.solution = solution
         self.cluster_hash = ""
+        self.type_problem = type_problem
 
     def add_cluster_hash(self, cluster_hash):
         self.cluster_hash = cluster_hash
@@ -37,9 +38,11 @@ class Node(object):
             return False
             
     def __hash__(self):
-        return hash((self.idx_line, self.it, self.fitness, self.solution))
+        if self.type_problem == "discrete":
+            return hash((self.idx_line, self.it, self.fitness, self.solution))
+        elif self.type_problem == "continuous":
+            return hash((self.idx_line, self.it, self.fitness, tuple(self.solution)))
         
-
 
 class Clustering:
     def __init__(self, S, M, typeproblem, limit_cluster_size_percent, limit_cluster_volume_percent, distance_method):
@@ -278,7 +281,7 @@ def check_binary(string):
 
 
 
-def text_to_numpy(all_solutions, params):
+def text_to_numpy_discrete(all_solutions, params):
     
     data_nodes = {}
     index_line = 0
@@ -292,16 +295,42 @@ def text_to_numpy(all_solutions, params):
             if data_nodes[name][-1].it != int(it): # keeps the correlative of the line index
                 index_line += 1
 
-        if params.typeproblem == "discrete":
-            data_nodes[name].add(Node(int(it), index_line, float(fitness), data_next_node[0]))
-            data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), data_next_node[2]))
-       
-        else:
-            data_nodes[name].add(Node(int(it), index_line, float(fitness), [float(elem) for elem in data_next_node[0]]))
-            data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), [float(elem) for elem in data_next_node[2]]))
+        data_nodes[name].add(Node(int(it), index_line, float(fitness), data_next_node[0]))
+        data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), data_next_node[2]))
+        
         index_line += 1
-
+    
     solutions = [bytearray(map(ord, node.solution)) for algorithm in data_nodes for node in data_nodes[algorithm]]
+    print("len: ", len(all_solutions)*2)
+    return data_nodes, np.array(solutions), np.array(solutions)
+
+def text_to_numpy_continuous(all_solutions, params):
+    
+    data_nodes = {}
+    index_line = 0
+    i = 0
+
+    while i < len(all_solutions) - 1:
+        name, it, fitness, *data_next_node = all_solutions[i].split(',')
+        _, it_next, fitness_next, *data_next_node_next = all_solutions[i + 1].split(',')
+        if name not in data_nodes:
+            data_nodes[name] = OrderedSet()
+       
+        if it == it_next:
+            data_nodes[name].add(Node(int(it), index_line, float(fitness), [float(elem) for elem in data_next_node], "continuous"))
+            print(data_nodes[name][-1], '-')
+            data_nodes[name].add(Node(int(it), index_line+1, float(fitness_next), [float(elem) for elem in data_next_node_next], "continuous"))
+            print(data_nodes[name][-1], '-')
+            index_line += 2
+        elif it == data_nodes[name][-1].it:
+            data_nodes[name].add(Node(int(it), index_line, float(fitness), [float(elem) for elem in data_next_node], "continuous"))
+            print(data_nodes[name][-1])
+            index_line += 1
+
+        #input()
+        i += 1
+    solutions = [node.solution for algorithm in data_nodes for node in data_nodes[algorithm]]
+
     print("len: ", len(all_solutions)*2)
     return data_nodes, np.array(solutions), np.array(solutions)
 
@@ -327,8 +356,12 @@ class AgglomerativeConfig(object):
 
 
 def continuous_agglomerative(params, cfiles):
-    
-    data_nodes, S, S_post_processing = text_to_numpy(cfiles, params)
+
+    if params.typeproblem == "discrete":
+        data_nodes, S, S_post_processing = text_to_numpy_discrete(cfiles, params)
+    elif params.typeproblem == "continuous":
+        data_nodes, S, S_post_processing = text_to_numpy_continuous(cfiles, params)
+
     M = np.zeros((len(S_post_processing), len(S_post_processing)), dtype=object)
     print("S: ", len(S))
     print("M: ", len(M))
@@ -371,6 +404,9 @@ def continuous_agglomerative(params, cfiles):
         for algorithm, nodes_data in algorithm_data_nodes.items():
             result = ["Run,Fitness1,Solution1,Fitness2,Solution2"]
             i = 0
+            #print(sorted(hashes))
+            #print(sorted([x.idx_line for x in nodes_data]))
+            #input()
             while i < (len(nodes_data) - 1):
                 if nodes_data[i].it != nodes_data[i+1].it:
                     aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
@@ -381,7 +417,8 @@ def continuous_agglomerative(params, cfiles):
                                                     hashes[nodes_data[i].idx_line],
                                                     nodes_data[i+1].fitness,
                                                     hashes[nodes_data[i+1].idx_line])
-                
+                #print(info_node)
+                #input()
                 nodes_data[i].add_cluster_hash(hashes[nodes_data[i].idx_line])
                 aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
                 result.append(info_node)

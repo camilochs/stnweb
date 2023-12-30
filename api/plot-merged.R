@@ -136,8 +136,8 @@ stn_decorate <- function(N)  {
   print(best_nodes)
   print("----")
   V(N)$shape <- "sphere"  # circle is the default shape
-  V(N)[end_nodes]$shape = "triangle"  # Triangle for end nodes
   V(N)[start_nodes]$shape = "square"  # Square for start nodes
+  V(N)[end_nodes]$shape = "triangle"  # Triangle for end nodes
   V(N)[best_nodes]$shape = "sphere"
   
   

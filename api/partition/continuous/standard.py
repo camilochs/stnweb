@@ -21,9 +21,9 @@ def hash_solution(solutions, min_bound, max_bound, pf):
                 if(p[k] <= solutions[i][j] and solutions[i][j] <= p[k+1]):
                     solutions[i][j] = int(k)
                     break
-        print("b:", solutions[i])
+        #print("b:", solutions[i])
         solutions[i] = hash(str(solutions[i]))
-        print("a:", solutions[i])
+        #print("a:", solutions[i])
     #print(solutions) 
     return solutions
 

@@ -14,6 +14,8 @@ mkdir logs
 touch logs/error.log
 touch logs/access.log
 
+export OPENAI_API_KEY=''
+
 gunicorn --workers=8 --threads=3  --timeout 500 \
     --preload --reload --log-level debug --access-logfile logs/access.log --error-logfile logs/error.log \
      -b '0.0.0.0:5001' 'stn:app' 
