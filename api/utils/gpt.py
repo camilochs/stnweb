@@ -1,6 +1,5 @@
 from openai import OpenAI
-from llama_index import GPTVectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage, download_loader, LLMPredictor, ServiceContext
-from langchain.chat_models import ChatOpenAI
+from llama_index import StorageContext, load_index_from_storage
 import os
 
 

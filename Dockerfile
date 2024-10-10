@@ -21,7 +21,7 @@ RUN R -e "install.packages(c('igraph', 'dply', 'tidyr', 'gtools'), dependencies=
 
 # Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir ordered_set g4f==0.1.9.0 numpy==1.23.5 scipy==1.9.3 Werkzeug==2.2.2 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 gunicorn==21.2.0 openai==1.6.1 langchain llama-index
+    pip install --no-cache-dir ordered_set numpy==1.23.5 scipy==1.9.3 Werkzeug==2.2.2 Flask==2.2.2 Flask-Cors==3.0.10 treap==2.0.10 gunicorn==21.2.0 openai==1.6.1 llama-index==0.9.9 langchain==0.2.6 langchain-community==0.2.6 langchain-core==0.2.10 networkx==3.2.1
 
 RUN npm install http-server -g
 

@@ -16,7 +16,6 @@ import tarfile
 import shutil
 import re 
 import functools
-import g4f
 
 app = Flask(__name__)
 CORS(app)
