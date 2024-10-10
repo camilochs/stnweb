@@ -29,7 +29,7 @@ if (!dir.exists(infolder) ){
 }
 
 # Default values of parameters if not given in command line.
-bmin <- 1
+bmin <- 0
 best <- NA   # Not given in command line, taken from data
 nruns <-NA   # Not given om command line, taken from data
 
@@ -40,7 +40,6 @@ if (length(args) > 1){
     stop("Error: 2nd argument is not a number", call.=FALSE)
   }
 }
-
 
 if (length(args) > 2) {
   best <- as.numeric(args[3])
@@ -72,7 +71,7 @@ cat("Output folder: ", outfolder, "\n")
 # igraph: tools handling graph objects
 # plyr:   tools for Splitting, Applying and Combining Data
 
-packages = c("igraph", "plyr")
+packages = c("igraph", "plyr", "dplyr")
 
 ## If a package is installed, it will be loaded. If any are not, 
 ## the missing package(s) will be installed from CRAN and then loaded.
@@ -119,8 +118,10 @@ stn_create <- function(instance)  {
     }
   }
   end_ids[k] <- trace_all$Solution2[j+1]   # last end ID -s considered as the end of the trajectory
-  
+  print("ok")
   end_ids <- unique(end_ids)     # only unique nodes required
+  
+  print(end_ids)
   start_ids <- unique(start_ids)
   
   for (i in (1:nruns)) {  # combine all runs in a single network
@@ -131,18 +132,26 @@ stn_create <- function(instance)  {
     ledges[[i]] <- trace[,c("node1", "node2")]
   }
   
-  print("----")
-  print(lnodes[[5]]$Fitness)
-  print("----")
   # combine the list of nodes into one dataframe and
   # group by (Node,Fitness) to identify unique nodes and count them
   nodes <- ddply((do.call("rbind", lnodes)), .(Node,Fitness), nrow)
   colnames(nodes) <- c("Node", "Fitness", "Count")
 
+  # Verificamos si el último nodo está duplicado
+  if (duplicated(tail(nodes$Node, 1))) {
+    # Si el último nodo es duplicado, eliminamos duplicados excepto el último
+    nodesu <- nodes[!duplicated(nodes$Node, fromLast = TRUE), ]
+  } else {
+    # Si no, eliminamos duplicados, manteniendo la primera aparición
+    nodesu <- nodes[!duplicated(nodes$Node), ]
+  }
 
-  nodesu<- nodes[!duplicated(nodes$Node), ]  # eliminate duplicates from dataframe, in case node ID us duplicated
+  #nodesu<- nodes[!duplicated(nodes$Node, fromLast = TRUE), ]  # eliminate duplicates from dataframe, in case node ID us duplicated
   print(" begin nodesu ")
   print(nodesu$Node)
+  #print(nodes$Node)
+  print(nodesu$Fitness)
+  #print(nodes$Fitness)
   print(" end nodesu ")
 
   # combine the list of edges into one dataframe and
@@ -153,11 +162,17 @@ stn_create <- function(instance)  {
   STN <- graph_from_data_frame(d = edges, directed = T, vertices = nodesu) # Create graph
   STN <- simplify(STN,remove.multiple = F, remove.loops = TRUE)  # Remove self loops
   
-  if (bmin) {  # minimisation problem 
+  if (bmin == 1) {  # minimisation problem 
     best_ids <- which(V(STN)$Fitness <= best)
   } else {    # maximisation  
     best_ids <- which(V(STN)$Fitness >= best)
+    
+    print("START")
     cat(V(STN)$Fitness)
+    cat(best_ids)
+    print("MEDIUM")
+    cat(best)
+    print("END")
   }
   # Four types of nodes, useful for visualisation: Start, End, Best and Standard.
   V(STN)$Type <- "medium"  # Default type

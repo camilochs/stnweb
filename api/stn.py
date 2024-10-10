@@ -9,7 +9,7 @@ from partition.continuous.agglomerative import AgglomerativeConfig
 from io import BytesIO
 from pprint import pprint
 from collections import Counter
-#from utils.gpt import get_response
+from utils.gpt import get_response
 import os
 import time
 import tarfile
@@ -88,7 +88,7 @@ def get_params() -> Params:
     else:
         number_of_clusters = int(number_of_clusters)
     
-    print(bmin)
+    print(bmin, "<-------------")
     print(typeproblem)
     print(strategy_partition)
     print(number_of_clusters)
@@ -276,7 +276,6 @@ def generate_from_files(params : Params):
         print("OK: {}".format(output))  
         #shutil.rmtree("temp/" + params.hash_file)
         #shutil.rmtree("temp/{}-stn".format(params.hash_file))
-
     return send_file(path, mimetype='application/pdf', as_attachment=True)
 
 def generate_from_file(params : Params):
@@ -302,6 +301,7 @@ def generate_from_file(params : Params):
     with Popen("Rscript metrics-alg.R {}".format("{}-stn".format(params.hash_file)), stdout=PIPE, stderr=None, shell=True) as process:
         output = process.communicate()[0]
         print("OK: {}".format(output))  
+
     return send_file(path, mimetype='application/pdf', as_attachment=True)
 
 
@@ -310,8 +310,6 @@ def get_agglomerative_info():
     hash_file = request.form.get('hash_file', "")
     print(hash_file)
     clusters = [int(e.split('-')[-1]) for e in list(filter(re.compile(f"{hash_file}-[0-9]+$").match, os.listdir("temp")))]
-
-    
     if clusters:
         return jsonify(
             limit_init = min(clusters),
@@ -331,22 +329,25 @@ def get_metrics():
     return send_file(hash_file, mimetype='text/csv', as_attachment=True)
 
 
-""" @app.route("/gpt_summary", methods=['POST'])
+@app.route("/gpt_summary", methods=['POST'])
 def get_get_summary():
-    context = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('number_of_cluster', '')}-context.txt"
+    #context = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('number_of_cluster', '')}-context.txt"
     query = f"temp/{request.form.get('hash_file', '')}/features-{request.form.get('number_of_cluster', '')}-query.txt"
     cluster_size_selected = request.form.get('number_of_cluster', '')
-    print(context)
-    print(query)
+    openai_key = request.form.get('openai_key', '')
+
+    print(query, openai_key)
     try:
         with open(query, 'r') as f2:
-            prompt_query = f2.read().replace("{number_of_clusters}", cluster_size_selected)
-            print(prompt_query)
-            response = get_response(prompt_query)
+            #prompt_query = f2.read().replace("{number_of_clusters}", cluster_size_selected)
+            prompt = f2.read()
+            print(prompt)
+            response = get_response(openai_key, prompt)
             pprint(response)
             return response
-    except:
-        return {} """
+    except Exception as e:
+        print("Error:", e)
+        return {} 
     
 @app.route("/stn", methods=['POST'])
 def generate():

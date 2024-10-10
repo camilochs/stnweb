@@ -3,9 +3,6 @@ from llama_index import GPTVectorStoreIndex, SimpleDirectoryReader, StorageConte
 from langchain.chat_models import ChatOpenAI
 import os
 
-client = OpenAI(
-    api_key= os.environ.get("OPENAI_API_KEY")
-)
 
 def read_from_storage(persist_dir):
     storage_context = StorageContext.from_defaults(persist_dir=persist_dir)
@@ -13,34 +10,45 @@ def read_from_storage(persist_dir):
 
 def get_template():
 
-    query = ("Task A: \n"
-            "Now, considering these rules, take a look at this data: {info_algorithm}\n"
-            "----------------\n"
-            "Task B: \n"
-            "These are the parameters by agglomerative clustering algorithm: {agglomerative_params} \n"
-            "----------------\n"
-            "These are the configuration constant: \n"
-            "\t minimum possible number of cluster: {min_cluster} \n"
-            "\t maximum possible number of cluster: {max_cluster} \n"
-            "----------------\n"
-            "Resolving Tasks: \n"
-            "\t Number 1 (Task A): Give me a general interpretation that allows comparing both algorithms and determining which one is better. \n"
-            "\t Number 2 (Task B): Give me the new numerical values for the agglomerative clustering to improve the results of the visualization in STNWeb, and explain why. These parameters work for all algorithms. \n" 
-            "\t Number 3: Explanation of the results Task A and B in the context of the article Search trajectory Networks Web (STNWeb). \n"
-            "----------------\n"
-                    "Rules to response: \n"
-                    "\t Your answer should be in the opening and closing tag for each Task. For example <Task_A> ... </Task_A> \n"
-                    "\t You response must has a limit to 300 tokens with details. \n"
-                    "\t In the answer add bold the name of each algorithm. \n"
-                    "\t This is a {type_problem} optimization problem. \n")
+    query = """
+    [BEGIN CONTEXT]
+        STNWeb is a new web tool for the visualization of the behavior of optimization algorithms such as metaheuristics. It allows for the graphical analysis of multiple runs of multiple algorithms on the same problem instance and, in this way, it facilitates the understanding of algorithm behavior. It may help, for example, in identifying the reasons for a rather low algorithm performance. This, in turn, can help the algorithm designer to change the algorithm in order to improve its performance. STNWeb is designed to be user-friendly. Moreover, it is offered for free to the research community.
+    [END CONTEXT]
+
+    [BEGIN TASK A]
+        [BEGIN RULES]
+            These are the general rules of the system:
+            (1) The more nodes pointing to the best fitness (this doesn't assume that it represents the global optimum), the higher the algorithm's quality because it can find the best result more reliably.
+            (2) The algorithm that has more overlap (merge) is likely to be more robust. If the algorithm finds nodes with the best fitness.
+            (3) For a minimization problem, indicating that an algorithm is superior involves favoring a smaller average fitness value. Whereas in the case of maximization, declaring an algorithm as better requires a higher average fitness value.
+        [END RULES]
+        [BEGIN DATA]
+            Problem:
+                This is a {{type_problem}} problem.
+            Features:
+                {{features}}
+            [END DATA]
+        [END TASK A]
+
+        [BEGIN QUERIES]
+            Task A: Identify the most effective algorithm for the considered optimization problem and provide detailed insights.
+            Instructions for your response:
+            - Clearly specify the winning algorithm by enclosing its name within brackets; in case of a tie, denote [draw].
+            - Present your response between [BEGIN TASK A] and [END TASK A].
+        [END QUERIES]
+    """
     return query
 
-def get_response(query):
-    index = read_from_storage("/home/camilocs/research/stnweb/analytics/storage")
+def get_response(openapi_key, query):
+    
+    client = OpenAI(
+        api_key= openapi_key
+    )
+    response = client.chat.completions.create(
+        model="gpt-4-1106-preview",
+        messages=[{"role": "user", "content": query}],
+        temperature=0.7,
+        )
 
-    llm_predictor = LLMPredictor(llm=ChatOpenAI(temperature=0.2, model_name="gpt-4-1106-preview"))
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-    custom_llm_query_engine = index.as_query_engine(service_context=service_context)
-
-    return str(custom_llm_query_engine.query(query))
+    return response.choices[0].message.content
 

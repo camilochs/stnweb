@@ -143,8 +143,10 @@ def standard(datainput, c_client, all_solutions):
                 aggregation.append(sha256(repr[bin[-1]].encode('utf-8')).hexdigest())
         #info_analytics = {k: info_analytics[k] for k in info_analytics if info_analytics[k][1] == 1}
         info_analytics = Counter(aggregation)
-        pprint(info_analytics)
-        print(sum(info_analytics.values()))
+        #pprint(info_analytics)
+        #print(sum(info_analytics.values()))
+        pprint(results)
+        
 
         return results, info_analytics
 

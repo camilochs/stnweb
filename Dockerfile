@@ -11,7 +11,7 @@ RUN apt-get update -y && \
         r-base-dev \
         python3.11 python3-pip \
         r-base=4.1.2-1ubuntu2  \
-        nodejs=12.22.9~dfsg-1ubuntu3.1 \
+        nodejs \
         npm=8.5.1~ds-1 && \
     apt-get clean all && \
     rm -rf /var/lib/apt/lists/*

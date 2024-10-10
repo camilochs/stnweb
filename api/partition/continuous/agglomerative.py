@@ -295,8 +295,8 @@ def text_to_numpy_discrete(all_solutions, params):
             if data_nodes[name][-1].it != int(it): # keeps the correlative of the line index
                 index_line += 1
 
-        data_nodes[name].add(Node(int(it), index_line, float(fitness), data_next_node[0]))
-        data_nodes[name].add(Node(int(it), index_line+1, float(data_next_node[1]), data_next_node[2]))
+        data_nodes[name].add(Node(int(it), index_line, int(fitness), data_next_node[0]))
+        data_nodes[name].add(Node(int(it), index_line+1, int(data_next_node[1]), data_next_node[2]))
         
         index_line += 1
     
@@ -373,8 +373,6 @@ def continuous_agglomerative(params, cfiles):
     C.cluster_iteration = [c for c in C.cluster_iteration]
     clusters = sorted([len(c) for c in C.cluster_iteration])
     
-    print("min clusters:", min(clusters))
-    print("max clusters:", max(clusters))
     if params.typeproblem == "discrete":
         min_clusters = max(min(clusters), 10)
         
@@ -410,6 +408,7 @@ def continuous_agglomerative(params, cfiles):
             while i < (len(nodes_data) - 1):
                 if nodes_data[i].it != nodes_data[i+1].it:
                     aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
+                    nodes_data[i].add_cluster_hash(hashes[nodes_data[i].idx_line])
                     i += 1
                     continue
                 info_node = "{},{},{},{},{}".format(nodes_data[i].it,
@@ -417,8 +416,9 @@ def continuous_agglomerative(params, cfiles):
                                                     hashes[nodes_data[i].idx_line],
                                                     nodes_data[i+1].fitness,
                                                     hashes[nodes_data[i+1].idx_line])
-                #print(info_node)
-                #input()
+                #if len(cluster) == 600:
+                #    print(info_node)
+                #    input()
                 nodes_data[i].add_cluster_hash(hashes[nodes_data[i].idx_line])
                 aggregation[len(cluster)].append(hashes[nodes_data[i].idx_line])
                 result.append(info_node)
@@ -430,11 +430,12 @@ def continuous_agglomerative(params, cfiles):
         
         all_information[len(cluster)] = copy.deepcopy(algorithm_data_nodes)
 
-    information_extraction(all_information, params)
-    
-    for cluster_size, v in aggregation.items():
-        if cluster_size != 237 and cluster_size != 175 and cluster_size != 120:
-            continue
+    print("min clusters:", min_clusters)
+    print("max clusters:", max(clusters))
+
+    information_extraction(all_information, params, min_clusters, max(clusters))
+
+    """for cluster_size, v in aggregation.items():
         agg = Counter(v)
         agg = Counter(agg.values())
         suma = 0
@@ -443,9 +444,7 @@ def continuous_agglomerative(params, cfiles):
             for _ in range(agg[k]):
                 print(k, end=",")
             suma += (k*agg[k])
-        print()
-        print(cluster_size, suma)
-        #input()
-        print("----")
+        #input()"""
+        
     return results, min_clusters
 
