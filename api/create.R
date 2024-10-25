@@ -110,26 +110,18 @@ stn_create <- function(instance)  {
   start_ids <- vector()
   n <- nrow(trace_all)-1
   start_ids[1] <- trace_all$Solution1[1]
-  if (length(trace_all$Run) > 0) {  # Verificar que el vector no esté vacío
-    if (n > 1) {  # Si hay más de un elemento
-      for (j in 1:(n-1)) {
-        # Verificar que ambos índices son válidos
-        if (j <= length(trace_all$Run) && (j+1) <= length(trace_all$Run)) {
-          if (trace_all$Run[j] != trace_all$Run[j+1]) { # when the run counter changes
-            end_ids[k] <- trace_all$Solution2[j]        # keep the name of the end solution
-            start_ids[k+1] <- trace_all$Solution1[j+1]  # keep the name of the next start solution
-            k = k+1
-          }
-        }
+  if( n == 0){
+    end_ids[k] <- trace_all$Solution2[1]
+  }else{
+    for (j in (1:n)) {
+      if (trace_all$Run[j] != trace_all$Run[j+1]) { # when the run counter changes
+        end_ids[k] <- trace_all$Solution2[j]        # keep the name of the end solution
+        start_ids[k+1] <- trace_all$Solution1[j+1]  # keep the name of the next start solution
+        k = k+1
       }
-      if (n <= length(trace_all$Run)) {
-        end_ids[k] <- trace_all$Solution2[n]
-      }
-    } else if (n == 1) {  # Si solo hay un elemento
-      end_ids[k] <- trace_all$Solution2[1]
     }
+    end_ids[k] <- trace_all$Solution2[j+1]   # last end ID -s considered as the end of the trajectory
   }
-  print("ok")
   end_ids <- unique(end_ids)     # only unique nodes required
   
   print(end_ids)
