@@ -71,8 +71,12 @@ def information_extraction(all_data, params, min_clusters, max_cluster):
             
             info[algorithm]["total_best_fitness"] = sum([1 for e in algorithm_graphs[algorithm] if e.fitness == best_fitness])
             info[algorithm]["total_trajectory"] = max([e.it for e in algorithm_graphs[algorithm]])
-            #print(np.mean(list(Counter([e.cluster_hash for e in algorithm_graphs[algorithm]]).values())))
-            info[algorithm]["mean_last_fitness"] = round(np.mean([ [node for node in algorithm_graphs[algorithm] if node.it == i][-1].fitness for i in range(1, max([e. it for e in algorithm_graphs[algorithm]])) ]), 3)
+            mean_values= [ [node for node in algorithm_graphs[algorithm] if node.it == i][-1].fitness for i in range(1, max([e. it for e in algorithm_graphs[algorithm]])) ]
+            if mean_values:
+                info[algorithm]["mean_last_fitness"] = round(np.mean(mean_values), 3)
+            else:
+                info[algorithm]["mean_last_fitness"] = algorithm_graphs[algorithm][-1].fitness
+ 
             info[algorithm]["total_merge_local"] = get_connected_graph(algorithm_graphs[algorithm], info[algorithm]["total_trajectory"] )
         
         template_general = get_template()
